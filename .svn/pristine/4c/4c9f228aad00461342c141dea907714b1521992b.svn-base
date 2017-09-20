@@ -1,0 +1,23 @@
+#pragma once
+#include <string>
+#include <vector>
+#include <set>
+#include <algorithm>
+#include <iterator>
+#include <unordered_map>
+#include "easygl_constants.h"
+#include "graphics.h"
+// Draws the map. You can assume your load_map (string map_name)
+// function is called before this function in the unit tests.
+// Your main () program should do the same.
+void draw_map();
+void initialize_map();
+void drawscreen();
+void find_average_latlon();
+void draw_street();
+void draw_features();
+bool is_closed_feature (unsigned feature_id);
+void draw_closed_feature(unsigned feature_id, t_color color);
+void draw_open_feature(unsigned feature_id, t_color color);
+t_point to_xycoordinate (LatLon location);
+void draw_seg_latlon(LatLon start, LatLon end);

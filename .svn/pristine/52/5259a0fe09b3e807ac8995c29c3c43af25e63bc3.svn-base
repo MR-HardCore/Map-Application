@@ -1,0 +1,63 @@
+#pragma once
+#include <string>
+#include <vector>
+#include <set>
+#include <algorithm>
+#include <iterator>
+#include <unordered_map>
+#include "easygl_constants.h"
+#include "graphics.h"
+#define RAD_TO_DEG 57.2958
+// Draws the map. You can assume your load_map (string map_name)
+// function is called before this function in the unit tests.
+// Your main () program should do the same.
+
+void load_milestone2();
+void draw_map();
+void drawscreen();
+
+//functions to draw features including helper functions
+void draw_features();
+bool is_closed_feature (unsigned feature_id);
+void draw_closed_feature(unsigned feature_id, t_color color);
+void draw_open_feature(unsigned feature_id, int width, t_color color);
+t_point to_xycoordinate (LatLon location);
+void draw_subway_routes(float frame_factor); 
+
+//functions to draw streets and highlighting street segments
+void draw_street_seg(unsigned streetseg_id, float speedlimit, float frame_factor);
+void draw_street(float SpeedLimit, float frame_factor);
+void draw_streetR(unsigned street_id ) ;
+void draw_seg_latlon(LatLon start, LatLon end);
+void draw_street_segR(unsigned streetseg_id);
+void draw_oneway_sign();
+void color_width_for_draw_streetseg(float speedlimit, float frame_factor);
+
+//functions to print street names and feature names
+t_bound_box find_frame();
+void draw_street_name(float SpeedLimit);
+void draw_feature_names();
+t_bound_box find_words_box(t_point A, t_point B);
+t_bound_box find_features_box(const t_point *polygon , unsigned num);
+t_point find_center_of_polygon(const t_point *polygon , unsigned num);
+void draw_POI_name(std::string name, t_point position);
+
+//functions to respond to user interactions
+void act_on_mousebutton(float x, float y, t_event_buttonPressed event);
+void act_on_find_button_func (void (*drawscreen_ptr) (void)) ;
+void draw_library(float frame_factor);
+void draw_recreation_center(float frame_factor);
+void act_on_library_button_func (void (*drawscreen_ptr) (void));
+void act_on_recreation_button_func (void (*drawscreen_ptr) (void));
+void act_on_POI_button_func(void (*drawscreen_ptr) (void));
+
+//functions to draw POIs
+void draw_spec_bubble(float frame_factor, t_color color, t_point location, std::string name);
+void draw_spec_icon(float frame_factor, t_color color, t_point location);
+void draw_POI(float frame_factor);
+void draw_finance(float frame_factor);
+void draw_restaurant(float frame_factor);
+void draw_car(float frame_factor);
+void draw_arts(float frame_factor);
+void draw_education(float frame_factor);
+void draw_icon_for_POI(float frame_factor, std::string icon, t_point location, std::string name);

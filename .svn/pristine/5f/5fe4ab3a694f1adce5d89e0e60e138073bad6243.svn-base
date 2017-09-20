@@ -1,0 +1,393 @@
+#include "structure.h"
+
+//functions for class StreetInfo
+
+StreetInfo::StreetInfo(unsigned _streetID, string _streetName) {
+    streetID = _streetID;
+    streetName = _streetName;
+}
+
+bool StreetInfo::intExist(unsigned intID) {
+    auto iter = find(intersection.begin(), intersection.end(), intID);
+    if (iter != intersection.end()) {
+        return true;
+    }
+    return false;
+}
+
+void StreetInfo::add_new_seg(unsigned segID) {
+    street_segment.push_back(segID);
+}
+
+void StreetInfo::add_new_int(unsigned intID) {
+    intersection.push_back(intID);
+}
+
+vector<unsigned> StreetInfo::returnAllStreetSegID() {
+    return street_segment;
+}
+
+vector<unsigned> StreetInfo::returnAllIntersectionID() {
+    return intersection;
+}
+
+string StreetInfo::getStreetName() {
+    return streetName;
+}
+
+
+
+
+
+// functions for class IntersectionsClassbyID
+
+IntersectionsClassbyID::IntersectionsClassbyID() {
+
+}
+
+void IntersectionsClassbyID::add_adjacent_intersection(unsigned adjInterID) {
+    adjacentIntersectionsVector.push_back(adjInterID);
+}
+
+bool IntersectionsClassbyID::adjIntersectionExists(unsigned adjInterID) {
+    auto iter = find(adjacentIntersectionsVector.begin(), adjacentIntersectionsVector.end(), adjInterID);
+    if (iter != adjacentIntersectionsVector.end()) {
+        return true;
+    }
+    return false;
+}
+
+void IntersectionsClassbyID::add_intersection_street_segment(unsigned interStrSegID) {
+    IntersectionStreetSegmentVector.push_back(interStrSegID);
+}
+
+vector<unsigned> IntersectionsClassbyID::returnAllInterStreetSegID() {
+    return IntersectionStreetSegmentVector;
+}
+
+vector<unsigned> IntersectionsClassbyID::returnAllAdjInterID() {
+    return adjacentIntersectionsVector;
+}
+
+
+
+// Functions for allIntersectionByStreetNameClass
+
+allIntersectionByStreetNameClass::allIntersectionByStreetNameClass() {
+
+}
+
+void allIntersectionByStreetNameClass::
+addStreetIDIntersectionsVector(vector <unsigned> & streetIDIntersectionsVec) {
+
+    // put contents of streetIDIntersectionsVec at the back of allIntersectionsVector
+    // which is the vector in the class
+    allIntersectionsVector.insert(allIntersectionsVector.end(),
+            streetIDIntersectionsVec.begin(), streetIDIntersectionsVec.end());
+}
+
+vector<unsigned> allIntersectionByStreetNameClass::getAllIntersectionsVector() {
+    return allIntersectionsVector;
+}
+
+
+//Functions for class dataStructureSingleton
+
+dataStructureSingleton::dataStructureSingleton() {
+
+    //find the max num 
+    unsigned TotalNumOfSeg = getNumberOfStreetSegments();
+
+    //the segments ids starts from 0
+    //the loop continues to store information until run all of the StreetSegmentInfo
+    for (unsigned NumOfSeg = 0; NumOfSeg < TotalNumOfSeg; NumOfSeg++) {
+
+
+
+        /*
+         * Populate StreetIDStruct_HashTable and StNameToID_BST
+         */
+
+        //find current segment information
+        StreetSegmentInfo tempSegInfo = getStreetSegmentInfo(NumOfSeg);
+
+        //use the iterator to search the database
+        auto iter = StreetIDStruct_HashTable.find(tempSegInfo.streetID);
+
+        //the street already exists in the data structure
+        if (iter != StreetIDStruct_HashTable.end()) {
+
+            //store current segment ids into the vector
+            //because we go through the segment info one by one
+            //the segment index won't be duplicated in the vector
+            iter->second->add_new_seg(NumOfSeg);
+
+            //the following two steps make sure there won't be duplicated intersection id in the vector 
+            if (!iter->second->intExist(tempSegInfo.from))
+                iter->second->add_new_int(tempSegInfo.from);
+
+            if (!iter->second->intExist(tempSegInfo.to))
+                iter->second->add_new_int(tempSegInfo.to);
+
+
+        } else { // if the street object does not exist
+
+            //get the street name by street id
+            string new_street_name = getStreetName(tempSegInfo.streetID);
+
+            //the following function works for building name->id map
+            //multi-map
+            StNameToID_BST.insert(make_pair(new_street_name, tempSegInfo.streetID));
+
+            //create a new street info object by following steps
+            //for unordered map
+            StreetInfo* tempHashDataStructPtr = new StreetInfo(tempSegInfo.streetID, new_street_name);
+
+            // set values in temporary StreetInfo structure before inserting into unordered map
+            tempHashDataStructPtr->add_new_seg(NumOfSeg);
+
+
+            // handle corner case where both "from" and "to" intersections are the same
+            if (tempSegInfo.from != tempSegInfo.to) {
+                tempHashDataStructPtr->add_new_int(tempSegInfo.from);
+                tempHashDataStructPtr->add_new_int(tempSegInfo.to);
+            } else
+                tempHashDataStructPtr->add_new_int(tempSegInfo.from);
+
+            //insert the new pair into the street map
+            StreetIDStruct_HashTable.insert(make_pair(tempSegInfo.streetID, tempHashDataStructPtr));
+
+            //set struct pointer to point to NULL
+            tempHashDataStructPtr = NULL;
+        }
+
+
+
+        /*
+         * Populate Intersection_HashTable 
+         * 
+         * Used to find adjacent intersections.
+         * 
+         * Intersection id is the key and adjacent intersection is stored in
+         * vector.
+         * 
+         * Searches for both from and to intersections. If street segment is not
+         * one way then "from" intersection is stored in the vector of "to" intersection
+         */
+
+        //use iterator to search the hash table for "FROM" intersection 
+        auto iterAdjInterFromInter = Intersection_HashTable.find(tempSegInfo.from);
+
+        // examine "from" intersection
+        // intersection exists: inserting in both adjacentIntersectionsVector
+        // and IntersectionStreetSegmentVector
+        if (iterAdjInterFromInter != Intersection_HashTable.end()) {
+            // true if intersection already exists in vector false otherwise
+            auto tempInfo = iterAdjInterFromInter->second;
+            bool interExists = tempInfo->adjIntersectionExists(tempSegInfo.to);
+
+            //inserting in intersection vector
+            if (!interExists)
+                // add the adjacent intersection in the street segment into vector
+                iterAdjInterFromInter->second->add_adjacent_intersection(tempSegInfo.to);
+
+            //insert street seg id into vector
+            iterAdjInterFromInter->second->add_intersection_street_segment(NumOfSeg);
+        } else {
+            IntersectionsClassbyID *tempAdjInterStruct = new IntersectionsClassbyID();
+
+            tempAdjInterStruct->add_adjacent_intersection(tempSegInfo.to);
+            tempAdjInterStruct->add_intersection_street_segment(NumOfSeg);
+
+            //insert the new pair into hash table
+            Intersection_HashTable.insert(make_pair(tempSegInfo.from, tempAdjInterStruct));
+            tempAdjInterStruct = NULL;
+        }
+
+        // examine "to" intersection
+        // street segment isn't one way
+        if (!tempSegInfo.oneWay) {
+            //use iterator to search the hash table for "TO" intersection 
+            auto iterAdjInterToInter = Intersection_HashTable.find(tempSegInfo.to);
+
+            if (iterAdjInterToInter != Intersection_HashTable.end()) {
+                // true if intersection already exists in vector false otherwise
+                bool interExists = (iterAdjInterToInter->second)->adjIntersectionExists(tempSegInfo.from);
+                if (!interExists)
+                    iterAdjInterToInter->second->add_adjacent_intersection(tempSegInfo.from);
+            } else {
+                // new class to insert
+                IntersectionsClassbyID *tempAdjInterStruct = new IntersectionsClassbyID();
+                tempAdjInterStruct->add_adjacent_intersection(tempSegInfo.from);
+
+                //insert the new pair into hash table
+                Intersection_HashTable.insert(make_pair(tempSegInfo.to, tempAdjInterStruct));
+                tempAdjInterStruct = NULL;
+            }
+        }
+
+        //storing the segment in IntersectionStreetSegmentVector
+        auto iterAdjInterToInter = Intersection_HashTable.find(tempSegInfo.to);
+
+        // examine "to" intersection
+        // intersection exists
+        if (iterAdjInterToInter != Intersection_HashTable.end()) {
+            // true if intersection already exists in vector false otherwise
+            auto tempInfo = iterAdjInterToInter->second;
+            tempInfo->add_intersection_street_segment(NumOfSeg);
+        } else {
+            IntersectionsClassbyID *tempAdjInterStruct = new IntersectionsClassbyID();
+            tempAdjInterStruct->add_intersection_street_segment(NumOfSeg);
+            //insert the new pair into hash table
+            Intersection_HashTable.insert(make_pair(tempSegInfo.to, tempAdjInterStruct));
+            tempAdjInterStruct = NULL;
+        }
+    }
+
+
+
+    /*
+     * Populate AllStreetIntersection_HashTable.
+     * 
+     * Used to find all intersection of a street given street name
+     * 
+     * Street name is the key. All intersections of each street name are 
+     * stored in the a vector in the allIntersectionByStreetNameClass. All 
+     * intersections of street IDs that are part of the street name make up 
+     * all the intersections of the street.
+     * 
+     * AllStreetIntersection_HashTable is populated after the other 
+     * three data structures are set up as AllStreetIntersection_HashTable
+     * gets data from StreetIDStruct_HashTable and StNameToID_BST.
+     * 
+     * All street IDs that belong to the street are found using StNameToID_BST
+     * then all intersections of those street IDs are inserted into one vector
+     * under the street name key.
+     */
+
+    unsigned numStreet = getNumberOfStreets();
+
+    for (unsigned streetIDIndex = 0; streetIDIndex < numStreet; streetIDIndex++) {
+
+        // find info on street ID in StreetIDStruct_HashTable
+        auto iterStreetID = StreetIDStruct_HashTable.find(streetIDIndex);
+
+        // get name of the street that the street ID belongs to
+        string currentStreetName = iterStreetID->second->getStreetName();
+
+        // find street name in AllStreetIntersection_HashTable
+        auto iterAllStreetIntersectionHB = AllStreetIntersection_HashTable.find(currentStreetName);
+
+        // Ignore the case where it is found 
+        // Execute only if not found
+        if (iterAllStreetIntersectionHB == AllStreetIntersection_HashTable.end()) {
+
+            // get all streetIDs that are part of the street
+            vector <unsigned> allStreetIDOfStreet = findStreetIDFromName(currentStreetName);
+            // create data to store in hash table
+            allIntersectionByStreetNameClass *tempClassPtr = new allIntersectionByStreetNameClass();
+            // get intersections of each street ID
+            for (unsigned streetID : allStreetIDOfStreet) {
+                vector <unsigned> streetIDIntersectionVec = getStreetIntersectionsVector(streetID);
+                // put it into the vector in the class
+                tempClassPtr->addStreetIDIntersectionsVector(streetIDIntersectionVec);
+            }
+
+            // create and entry in hash table
+            AllStreetIntersection_HashTable.insert(make_pair(currentStreetName, tempClassPtr));
+            tempClassPtr = NULL;
+        }
+    }
+}
+
+dataStructureSingleton::~dataStructureSingleton() {
+    // delete dynamically allocated classes
+    auto iter1 = StreetIDStruct_HashTable.begin();
+    while (iter1 != StreetIDStruct_HashTable.end()) {
+        if (iter1->second != NULL)
+            delete iter1->second;
+        iter1->second = NULL;
+        iter1++;
+    }
+
+    auto iter2 = Intersection_HashTable.begin();
+    while (iter2 != Intersection_HashTable.end()) {
+        if (iter2->second != NULL)
+            delete iter2->second;
+        iter2->second = NULL;
+        iter2++;
+    }
+
+    auto iter3 = AllStreetIntersection_HashTable.begin();
+    while (iter3 != AllStreetIntersection_HashTable.end()) {
+        if (iter3->second != NULL)
+            delete iter3->second;
+        iter3->second = NULL;
+        iter3++;
+    }
+}
+
+void dataStructureSingleton::deleteStruc() {
+    if (dataStructure != NULL)
+        delete dataStructure;
+    dataStructure = NULL;
+}
+
+dataStructureSingleton * dataStructureSingleton::dataStructures() {
+    if (dataStructure == NULL)
+        dataStructure = new dataStructureSingleton;
+    return dataStructure;
+};
+
+vector<unsigned> dataStructureSingleton::findStreetIDFromName(string street_name) {
+    pair <multimap<string, unsigned>::iterator, multimap<string, unsigned>::iterator> ret;
+    ret = StNameToID_BST.equal_range(street_name);
+    vector<unsigned> matchedStreetIDs;
+    for (auto it = ret.first; it != ret.second; ++it)
+        matchedStreetIDs.push_back(it->second);
+    return matchedStreetIDs;
+}
+
+vector<unsigned> dataStructureSingleton::findIntersectionStreetSeg(unsigned intersection_id) {
+    auto currentIntersection = Intersection_HashTable[intersection_id];
+    if (currentIntersection != NULL) {
+        return currentIntersection->returnAllInterStreetSegID();
+    } else {
+        std::vector <unsigned> emptyVector;
+        return (emptyVector);
+    }
+}
+
+vector<unsigned> dataStructureSingleton::getAllAdjacentIntersections(unsigned intersection_id) {
+    auto currentIntersection = Intersection_HashTable[intersection_id];
+    if (currentIntersection != NULL)
+        return currentIntersection->returnAllAdjInterID();
+
+        // To guard against the corner case where the intersection not connected to any
+        // street segments. Thus, meaning that key with this intersection was not
+        // created in the hash table
+    else {
+        std::vector <unsigned> emptyVector;
+        return (emptyVector);
+    }
+}
+
+vector<unsigned> dataStructureSingleton::getAllStreetSegForStreet(unsigned street_id) {
+    auto currentStreet = StreetIDStruct_HashTable[street_id];
+    return currentStreet->returnAllStreetSegID();
+}
+
+std::vector<unsigned> dataStructureSingleton::getStreetIntersectionsVector(unsigned street_id) {
+    auto currentStreet = StreetIDStruct_HashTable[street_id];
+    return currentStreet->returnAllIntersectionID();
+}
+
+std::vector<unsigned> dataStructureSingleton::getStreetNameIntersectionsVector(string streetName) {
+    auto foundStreetName = AllStreetIntersection_HashTable[streetName];
+    if (foundStreetName != NULL)
+        return foundStreetName->getAllIntersectionsVector();
+    else {
+        std::vector <unsigned> emptyVector;
+        return (emptyVector);
+    }
+}

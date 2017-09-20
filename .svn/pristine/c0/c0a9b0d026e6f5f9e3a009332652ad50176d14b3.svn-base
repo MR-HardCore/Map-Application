@@ -1,0 +1,86 @@
+#pragma once
+#include <vector>
+#include <list>
+#include <string>
+#include <cstdlib>
+#include <iostream>
+#include <sstream>
+#include "StreetsDatabaseAPI.h"
+#include "m1.h"
+#include "m2.h"
+#include "structure.h"
+
+using namespace std;
+
+
+//global vectors to store every intersection information for finding shortest path 
+extern vector<InterInfo> IntersectionNode;
+
+//global variable to record the finding times 
+//this allows to reuse intersectionNode without reconstruction
+extern int visited;
+
+//this function works for intialize the global variable
+void IntersectionNodeInitialization();
+
+//dijsktra shortest algorithm
+bool bfsPath(int startID, int destID);
+
+//helper function for Min Heap
+bool timeComparator(InterSec first, InterSec second);
+
+//return the target segment vector
+vector<unsigned> bfsTraceBack(unsigned destID) ;
+
+// Returns a path (route) between the start intersection and the end 
+// intersection, if one exists. If no path exists, this routine returns 
+// an empty (size == 0) vector. If more than one path exists, the path 
+// with the shortest travel time is returned. The path is returned as a vector 
+// of street segment ids; traversing these street segments, in the given order,
+// would take one from the start to the end intersection.
+std::vector<unsigned> find_path_between_intersections(unsigned 
+                   intersect_id_start, unsigned intersect_id_end);
+
+//this function load all of functions for milestone 3
+void load_milestone3();
+
+//help function to find last Intersection
+unsigned GetLastIntID(StreetSegmentInfo seginfo, unsigned currentID) ;
+
+// Returns the time required to travel along the path specified. The path
+// is passed in as a vector of street segment ids, and this function can 
+// assume the vector either forms a legal path or has size == 0.
+// The travel time is the sum of the length/speed-limit of each street 
+// segment, plus 15 seconds per turn implied by the path. A turn occurs
+// when two consecutive street segments have different street names.
+double compute_path_travel_time(const std::vector<unsigned>& path);
+
+
+// Returns the shortest travel time path (vector of street segments) from 
+// the start intersection to a point of interest with the specified name.
+// If no such path exists, returns an empty (size == 0) vector.
+std::vector<unsigned> find_path_to_point_of_interest (unsigned 
+                   intersect_id_start, std::string point_of_interest_name);
+
+//helper functions
+double find_distance_between_two_intersection(unsigned 
+                   intersect_id_1, unsigned intersect_id_2);
+
+void act_on_find_button_func_m3(void (*drawscreen_ptr) (void));
+
+char* street_name_generator(const char* stem_text, int state);
+
+char** command_completion_street(const char* stem_text, int start, int end);
+
+char* command_name_generator(const char* stem_text, int state);
+
+char** command_completion_command(const char* stem_text, int start, int end);
+
+//function to parse the name character array into a string
+std::string parse_string(const char* name_char, bool min_1);
+
+void act_on_travel_points_button_func(void (*drawscreen_ptr) (void));
+
+void draw_start_end_point_icons(float frame_factor);
+
+void draw_icon_start_end_intersection(float frame_factor, string icon, t_point location);

@@ -1,0 +1,127 @@
+/*
+ * To change this license header, choose License Headers in Project Properties.
+ * To change this template file, choose Tools | Templates
+ * and open the template in the editor.
+ */
+#include "StreetsDatabaseAPI.h"
+#include "m1.h"
+#include "m2.h"
+#define INI_SCREEN 300
+
+using namespace std;
+double average_lat=0;
+double average_lon=0;
+
+void draw_map(){
+    load_map("map name");
+    
+    
+}
+
+void initialize_map(){
+    find_average_latlon();
+    double range=EARTH_RADIUS_IN_METERS/INI_SCREEN;
+    double XMAX=-EARTH_RADIUS_IN_METERS*(average_lon*DEG_TO_RAD)*cos(average_lat*DEG_TO_RAD);
+    double YMAX=EARTH_RADIUS_IN_METERS*(average_lon*DEG_TO_RAD);
+    t_bound_box ini_view=t_bound_box(XMAX-range,YMAX-range,XMAX+range, YMAX+range);
+    
+    init_graphics("My Map",WHITE);
+    set_visible_world(ini_view);
+    
+    event_loop(NULL,NULL,NULL,drawscreen);
+}
+
+void drawscreen(){
+    
+}
+
+//function to calculate the average latitude and longitude
+void find_average_latlon(){
+    LatLon current;
+    double Lat_sum=0;
+    double Lon_sum=0;
+    unsigned num_intersections=getNumberOfIntersections();
+    for(unsigned intersec_idx=0; intersec_idx<num_intersections;intersec_idx++){
+        current=getIntersectionPosition(intersec_idx);
+        Lat_sum+=current.lat;
+        Lon_sum+=current.lon;
+    }
+    average_lat=Lat_sum/num_intersections;
+    average_lon=Lon_sum/num_intersections;
+}
+
+void draw_street(){
+    
+}
+
+void draw_features(){
+    for(unsigned feature_idx = 0; feature_idx < getNumberOfFeatures(); feature_idx++){
+        FeatureType current_type=getFeatureType(feature_idx);
+        if(is_closed_feature(feature_idx)){
+            if(current_type==Park||current_type==Greenspace|current_type==Golfcourse)
+                draw_closed_feature(feature_idx,GREEN);
+            else if(current_type==Shoreline|| current_type==Beach)
+                draw_closed_feature(feature_idx,KHAKI);
+            else if(current_type==Building)
+                draw_closed_feature(feature_idx,PLUM);
+            else if(current_type==Lake) 
+                draw_closed_feature(feature_idx,TURQUOISE);
+            else//unknown
+                draw_closed_feature(feature_idx,DARKKHAKI);
+        }
+        else{
+            if(current_type==River||current_type==Stream) 
+                draw_open_feature(feature_idx,TURQUOISE);
+            else
+                draw_open_feature(feature_idx,DARKKHAKI);
+        }
+    }
+}
+
+bool is_closed_feature (unsigned feature_id){
+    LatLon start = getFeaturePoint(feature_id, 0);
+    LatLon end = getFeaturePoint(feature_id, getFeaturePointCount(feature_id)-1);
+    if((start.lat==end.lat)&&(start.lon==end.lon))
+        return true;
+    else 
+        return false;
+}
+
+void draw_closed_feature(unsigned feature_id, t_color color){
+    setcolor(color);
+    setlinestyle(SOLID);
+    unsigned point_num = getFeaturePointCount(feature_id);
+    t_point feature_points[point_num];
+    for (unsigned point_idx = 0; point_idx < point_num; point_idx++)
+    {
+        feature_points[point_idx] = to_xycoordinate(getFeaturePoint(feature_id, point_idx));
+    }
+    fillpoly(feature_points, point_num);
+}
+
+void draw_open_feature(unsigned feature_id, t_color color){
+    unsigned point_num = getFeaturePointCount(feature_id);
+    setlinewidth (2);
+    setcolor(color);
+    setlinestyle(SOLID);
+    for(unsigned  point_idx= 1; point_idx < point_num; point_idx++){
+        LatLon start = getFeaturePoint(feature_id, point_idx-1);
+        LatLon end=getFeaturePoint (feature_id, point_idx);
+        draw_seg_latlon(start, end);
+    }
+}
+
+t_point to_xycoordinate (LatLon location){
+    t_point xycoordinate;
+    /////////////////////////////////////////////////////////////////////////////////////////////
+    xycoordinate.x = EARTH_RADIUS_IN_METERS * location.lon * DEG_TO_RAD * cos(average_lat*DEG_TO_RAD);
+    xycoordinate.y = EARTH_RADIUS_IN_METERS * location.lat * DEG_TO_RAD;
+    
+    return xycoordinate;
+}
+
+void draw_seg_latlon(LatLon start, LatLon end){
+    t_point xystart=to_xycoordinate(start);
+    t_point xyend=to_xycoordinate(end);
+    drawline(xystart,xyend);
+}

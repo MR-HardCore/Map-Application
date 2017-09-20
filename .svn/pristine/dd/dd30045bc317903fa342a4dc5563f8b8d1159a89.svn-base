@@ -1,0 +1,9 @@
+#pragma once
+#include <string>
+
+// Draws the map. You can assume your load_map (string map_name)
+// function is called before this function in the unit tests.
+// Your main () program should do the same.
+void draw_map();
+
+

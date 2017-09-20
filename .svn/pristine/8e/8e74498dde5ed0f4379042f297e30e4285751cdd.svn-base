@@ -1,0 +1,315 @@
+
+/* 
+ * File:   structure.h
+ * Author: caiyuxi
+ *
+ * Created on January 28, 2016, 9:28 PM
+ */
+
+#pragma once //protects against multiple inclusions of this header file
+
+#include <string>
+#include <vector>
+#include "StreetsDatabaseAPI.h"
+#include "OSMDatabaseAPI.h"
+#include <cstdlib>
+#include <string>
+#include <iostream>
+#include <unordered_map>
+#include <map>
+#include <algorithm>
+#include "graphics.h"
+#include "m1.h"
+#include "m2.h"
+using namespace std;
+
+
+extern double cos_factor;
+
+//this structure works for temporary comparator when find the shortest path
+struct InterSec {
+    unsigned IntSecID;
+    unsigned LastSegID;
+    double WeightedTime;
+
+    InterSec(unsigned SecID, unsigned SegID, double time) {
+        IntSecID = SecID;
+        LastSegID = SegID;
+        WeightedTime = time;
+    }
+
+};
+
+//working for find shortest path
+//this structure stored necessary information in preset data structure
+struct InterInfo {
+    unsigned IntID; //initialize to actual ID
+    int lastSeg; //initialize to -2 
+    int lastStreet;// initialize to -2
+    double travelTime; // initialize to -1
+    double weightedTime; // initialize to 0
+    int visitedTime; //intialized to 0
+    
+    InterInfo(unsigned ID, int Seg, int St, double time, double weight, int visited){
+        IntID = ID;
+        lastSeg = Seg;
+        lastStreet = St;
+        travelTime = time;
+        weightedTime = weight;
+        visitedTime = visited;        
+    }
+};
+
+//pointer in street info hash table points to this class
+
+class StreetInfo {
+private:
+    // index of street this segment belongs to
+    // start from 0
+    unsigned streetID;
+
+    // name the this street
+    string streetName;
+
+    // this vector stored all of street segment's id on this street  
+    vector<unsigned> street_segment;
+
+    // this vector stored all of street intersection's id on this street  
+    vector<unsigned> intersection;
+
+public:
+
+    //constructor with streetID and streetName
+    StreetInfo(unsigned _streetID, string _streetName);
+
+    //check the whether the intersection object exists or not
+    bool intExist(unsigned intID);
+    
+    //push_back a new segment ID into the vector
+    void add_new_seg(unsigned segID);
+
+    //push_back a new intersection ID into the vector
+    void add_new_int(unsigned intID);
+
+    //return the street segment ID from the vector
+    vector<unsigned> returnAllStreetSegID();
+
+    //return the street intersection ID from the vector
+    vector<unsigned> returnAllIntersectionID();
+    
+    //return the street name from the object
+    string getStreetName();
+};
+
+
+
+// Pointer in Intersections hash table pointers to this class
+// hold adjacent intersections and intersected street segment IDs
+
+class IntersectionsClassbyID {
+private:
+    
+    //the vector stored all adjacent intersection ID
+    vector<unsigned> adjacentIntersectionsVector;
+    
+    //the vector stored all street segment ID
+    vector<unsigned> IntersectionStreetSegmentVector;
+public:
+    //constructor of the class
+    IntersectionsClassbyID();
+    
+    //add an adjacent intersection ID into the vector
+    void add_adjacent_intersection(unsigned adjInterID);
+    
+    //to verify does the adjacent section existed or not
+    bool adjIntersectionExists(unsigned adjInterID);
+    
+    //add an adjacent street segment
+    void add_intersection_street_segment(unsigned interStrSegID);
+    
+    //return all of the adjacent street segments ID of this intersection
+    vector<unsigned> returnAllInterStreetSegID();
+    
+    //return all of the adjacent intersections ID of this intersection 
+    vector<unsigned> returnAllAdjInterID();
+};
+
+
+
+// Pointer in allStreetNameIntersection_HashTable points to this class
+// Holds all the intersections of a street name
+
+class allIntersectionByStreetNameClass {
+private:
+    vector<unsigned> allIntersectionsVector;
+
+public:
+    allIntersectionByStreetNameClass();
+    
+    // Vector that holds all the intersections for one street id is passed
+    // The intersections in the vector is then added to allIntersectionsVector vector in the class 
+    void addStreetIDIntersectionsVector(vector <unsigned> & streetIDIntersectionsVec);
+    vector<unsigned> getAllIntersectionsVector();
+};
+
+//a structure to store information about a point of interest
+struct point_info{
+    LatLon position;
+    t_point xy_position;
+    string type;
+    string name;
+    unsigned POIID;
+    point_info& operator=(const point_info& rhs);
+};
+
+//a structure to store information for a special location
+struct spec_bubble_info{
+    t_point location;
+    t_color color;
+    std::string name;
+    spec_bubble_info(t_point _location,t_color _color, std::string _name);
+};
+
+//a structure to store information about a subway route
+struct subway_route_info{
+    vector<LatLon> position;
+    vector<unsigned long long> node_OSMid_vector;
+    string name;
+};
+
+
+class dataStructureSingleton {
+private:
+    static dataStructureSingleton *dataStructure;
+
+    unordered_map<unsigned, StreetInfo*> StreetIDStruct_HashTable;
+
+    // Intersection id is the key and adjacent intersection is stored in
+    // a vector.
+    // Searches for both from and to intersections. If street segment is not
+    // one way then "from" intersection is stored in the vector of "to" intersection
+    unordered_map<unsigned, IntersectionsClassbyID*> Intersection_HashTable;
+    
+    // Street name is the key. All intersections of each street name are stored
+    // in the a vector in the allIntersectionByStreetNameClass.
+    // All intersections of street IDs that are part of the street name make up 
+    // all the intersections of the street
+    unordered_map<string, allIntersectionByStreetNameClass*> AllStreetIntersection_HashTable;
+
+    multimap<string, unsigned> StNameToID_BST;
+    
+    // Private Constructor
+    dataStructureSingleton();
+
+public:
+    //destructor 
+    ~dataStructureSingleton();
+    
+    //this one is the data structure created by SingleTon 
+    static dataStructureSingleton* dataStructures();
+
+    //to call destructor 
+    void deleteStruc();
+    
+    //structures for draw map
+    //features layer 1 contains all the feature ids for Lake, Shoreline and Beach
+    vector<unsigned> features_layer1_vector;
+    //features layer 2 contains all the feature ids for Park, Green space, Golfcourse,
+    //Building and unknowns
+    vector<unsigned> features_layer2_vector;
+    //features layer 3 contains all the feature ids for River and Streams
+    vector<unsigned> features_layer3_vector;
+    
+    //structure for special features in m2
+    //including information of all locations with type library
+    vector<point_info> library_vector;
+    //including information of all locations with type health_center, 
+    //health_specialty chiropractic or hospital
+    vector<point_info> recreation_vector;
+    
+    vector<point_info> finance_vector;
+    
+    vector<point_info> restaurant_vector;
+    
+    vector<point_info> car_vector;
+    
+    vector<point_info> arts_vector;
+    
+    vector<point_info> education_vector;
+
+    multimap<unsigned long long, unsigned> OSMnodeID_to_idx;
+            
+    vector<subway_route_info> subway_vector;
+    
+    vector<point_info> subway_station_vector;
+    
+    vector<char> keyboard_input;
+    
+    string proceed_name;
+    
+    bool keyboard_active;
+    
+    spec_bubble_info* pop;
+    
+    t_bound_box initial_frame;
+    
+    unsigned clicked_intersection_ID;
+    
+    bool get_travel_points_from_map_clicks;
+    
+    unsigned first_intersection_clicked_ID;
+    
+    unsigned second_intersection_clicked_ID;
+    
+    LatLon first_LatLon_clicked;
+    
+    LatLon second_LatLon_clicked;
+    
+    vector<unsigned> path;
+    
+    //a pointer to a 2d array of all POIs
+    vector<unsigned> Inter_2d_array[100][100];
+    
+    //a pointer to a 2d array of all POIs
+    vector<point_info> POI_2d_array[100][100];
+    
+    //two vectors storing all the street names and POI names respectively for command line auto complete
+    vector<const char*> street_names;
+    
+    vector<const char*> POI_names;
+    
+    //multimap to find out the POIids corresponding to one name
+    multimap<string, unsigned> POI_name_to_id;
+    
+    //id to closest intersection id
+    unordered_map<unsigned, unsigned> cloeset_intersec;
+
+    //relates to std::vector<unsigned> find_street_ids_from_name(std::string street_name);
+    vector<unsigned> findStreetIDFromName(string street_name);
+
+    //relates to std::vector<unsigned> find_intersection_street_segments(unsigned intersection_id);
+    vector<unsigned> findIntersectionStreetSeg(unsigned intersection_id);
+    
+    //relates to std::vector<unsigned> find_adjacent_intersections(unsigned intersection_id);
+    vector<unsigned> getAllAdjacentIntersections(unsigned intersection_id);
+
+    //relates to std::vector<unsigned> find_street_street_segments(unsigned street_id);
+    vector<unsigned> getAllStreetSegForStreet(unsigned street_id);
+
+    //relates to std::vector<unsigned> find_all_street_intersections(unsigned street_id);
+    vector<unsigned> getStreetIntersectionsVector(unsigned street_id);
+    
+    //relates to std::vector<unsigned> find_intersection_ids_from_street_names(std::string street_name1, std::string street_name2);
+    vector<unsigned> getStreetNameIntersectionsVector(string street_name);
+
+    //return all street segments ID
+    vector<unsigned> returnAllStreetSegID();
+
+    //return all intersection ID
+    vector<unsigned> returnAllIntersectionID();
+    
+    //return all POI ids corresponding to a name
+    vector<unsigned> findPOIIDFromName(string POI_name);
+};
+
+/* To use the functions, insert dataStructureSingleton::dataStructures()->*/

@@ -1,0 +1,639 @@
+#include "structure.h"
+
+//functions for class StreetInfo
+
+StreetInfo::StreetInfo(unsigned _streetID, string _streetName) {
+    streetID = _streetID;
+    streetName = _streetName;
+}
+
+bool StreetInfo::intExist(unsigned intID) {
+    auto iter = find(intersection.begin(), intersection.end(), intID);
+    if (iter != intersection.end()) {
+        return true;
+    }
+    return false;
+}
+
+void StreetInfo::add_new_seg(unsigned segID) {
+    street_segment.push_back(segID);
+}
+
+void StreetInfo::add_new_int(unsigned intID) {
+    intersection.push_back(intID);
+}
+
+vector<unsigned> StreetInfo::returnAllStreetSegID() {
+    return street_segment;
+}
+
+vector<unsigned> StreetInfo::returnAllIntersectionID() {
+    return intersection;
+}
+
+string StreetInfo::getStreetName() {
+    return streetName;
+}
+
+
+//function for the point of interest information
+
+point_info& point_info::operator=(const point_info& rhs) {
+    position = rhs.position;
+    name = rhs.name;
+    xy_position = rhs.xy_position;
+    type = rhs.type;
+    POIID = rhs.POIID;
+    return *this;
+}
+// functions for class IntersectionsClassbyID
+
+IntersectionsClassbyID::IntersectionsClassbyID() {
+
+}
+
+void IntersectionsClassbyID::add_adjacent_intersection(unsigned adjInterID) {
+    adjacentIntersectionsVector.push_back(adjInterID);
+}
+
+bool IntersectionsClassbyID::adjIntersectionExists(unsigned adjInterID) {
+    auto iter = find(adjacentIntersectionsVector.begin(), adjacentIntersectionsVector.end(), adjInterID);
+    if (iter != adjacentIntersectionsVector.end()) {
+        return true;
+    }
+    return false;
+}
+
+void IntersectionsClassbyID::add_intersection_street_segment(unsigned interStrSegID) {
+    IntersectionStreetSegmentVector.push_back(interStrSegID);
+}
+
+vector<unsigned> IntersectionsClassbyID::returnAllInterStreetSegID() {
+    return IntersectionStreetSegmentVector;
+}
+
+vector<unsigned> IntersectionsClassbyID::returnAllAdjInterID() {
+    return adjacentIntersectionsVector;
+}
+
+
+
+// Functions for allIntersectionByStreetNameClass
+
+allIntersectionByStreetNameClass::allIntersectionByStreetNameClass() {
+
+}
+
+void allIntersectionByStreetNameClass::
+addStreetIDIntersectionsVector(vector <unsigned> & streetIDIntersectionsVec) {
+
+    // put contents of streetIDIntersectionsVec at the back of allIntersectionsVector
+    // which is the vector in the class
+    allIntersectionsVector.insert(allIntersectionsVector.end(),
+            streetIDIntersectionsVec.begin(), streetIDIntersectionsVec.end());
+}
+
+vector<unsigned> allIntersectionByStreetNameClass::getAllIntersectionsVector() {
+    return allIntersectionsVector;
+}
+
+
+//Functions for class dataStructureSingleton
+
+dataStructureSingleton::dataStructureSingleton() {
+
+    //find the max num 
+    unsigned TotalNumOfSeg = getNumberOfStreetSegments();
+
+    //the segments ids starts from 0
+    //the loop continues to store information until run all of the StreetSegmentInfo
+    for (unsigned NumOfSeg = 0; NumOfSeg < TotalNumOfSeg; NumOfSeg++) {
+
+
+
+        /*
+         * Populate StreetIDStruct_HashTable and StNameToID_BST
+         */
+
+        //find current segment information
+        StreetSegmentInfo tempSegInfo = getStreetSegmentInfo(NumOfSeg);
+
+        //use the iterator to search the database
+        auto iter = StreetIDStruct_HashTable.find(tempSegInfo.streetID);
+
+        //the street already exists in the data structure
+        if (iter != StreetIDStruct_HashTable.end()) {
+
+            //store current segment ids into the vector
+            //because we go through the segment info one by one
+            //the segment index won't be duplicated in the vector
+            iter->second->add_new_seg(NumOfSeg);
+
+            //the following two steps make sure there won't be duplicated intersection id in the vector 
+            if (!iter->second->intExist(tempSegInfo.from))
+                iter->second->add_new_int(tempSegInfo.from);
+
+            if (!iter->second->intExist(tempSegInfo.to))
+                iter->second->add_new_int(tempSegInfo.to);
+
+
+        } else { // if the street object does not exist
+
+            //get the street name by street id
+            string new_street_name = getStreetName(tempSegInfo.streetID);
+
+            //the following function works for building name->id map
+            //multi-map
+            StNameToID_BST.insert(make_pair(new_street_name, tempSegInfo.streetID));
+            street_names.push_back(new_street_name.c_str());
+
+            //create a new street info object by following steps
+            //for unordered map
+            StreetInfo* tempHashDataStructPtr = new StreetInfo(tempSegInfo.streetID, new_street_name);
+
+            // set values in temporary StreetInfo structure before inserting into unordered map
+            tempHashDataStructPtr->add_new_seg(NumOfSeg);
+
+
+            // handle corner case where both "from" and "to" intersections are the same
+            if (tempSegInfo.from != tempSegInfo.to) {
+                tempHashDataStructPtr->add_new_int(tempSegInfo.from);
+                tempHashDataStructPtr->add_new_int(tempSegInfo.to);
+            } else
+                tempHashDataStructPtr->add_new_int(tempSegInfo.from);
+
+            //insert the new pair into the street map
+            StreetIDStruct_HashTable.insert(make_pair(tempSegInfo.streetID, tempHashDataStructPtr));
+
+            //set struct pointer to point to NULL
+            tempHashDataStructPtr = NULL;
+        }
+
+
+
+        /*
+         * Populate Intersection_HashTable 
+         * 
+         * Used to find adjacent intersections.
+         * 
+         * Intersection id is the key and adjacent intersection is stored in
+         * vector.
+         * 
+         * Searches for both from and to intersections. If street segment is not
+         * one way then "from" intersection is stored in the vector of "to" intersection
+         */
+
+        //use iterator to search the hash table for "FROM" intersection 
+        auto iterAdjInterFromInter = Intersection_HashTable.find(tempSegInfo.from);
+
+        // examine "from" intersection
+        // intersection exists: inserting in both adjacentIntersectionsVector
+        // and IntersectionStreetSegmentVector
+        if (iterAdjInterFromInter != Intersection_HashTable.end()) {
+            // true if intersection already exists in vector false otherwise
+            auto tempInfo = iterAdjInterFromInter->second;
+            bool interExists = tempInfo->adjIntersectionExists(tempSegInfo.to);
+
+            //inserting in intersection vector
+            if (!interExists)
+                // add the adjacent intersection in the street segment into vector
+                iterAdjInterFromInter->second->add_adjacent_intersection(tempSegInfo.to);
+
+            //insert street seg id into vector
+            iterAdjInterFromInter->second->add_intersection_street_segment(NumOfSeg);
+        } else {
+            IntersectionsClassbyID *tempAdjInterStruct = new IntersectionsClassbyID();
+
+            tempAdjInterStruct->add_adjacent_intersection(tempSegInfo.to);
+            tempAdjInterStruct->add_intersection_street_segment(NumOfSeg);
+
+            //insert the new pair into hash table
+            Intersection_HashTable.insert(make_pair(tempSegInfo.from, tempAdjInterStruct));
+            tempAdjInterStruct = NULL;
+        }
+
+        // examine "to" intersection
+        // street segment isn't one way
+        if (!tempSegInfo.oneWay) {
+            //use iterator to search the hash table for "TO" intersection 
+            auto iterAdjInterToInter = Intersection_HashTable.find(tempSegInfo.to);
+
+            if (iterAdjInterToInter != Intersection_HashTable.end()) {
+                // true if intersection already exists in vector false otherwise
+                bool interExists = (iterAdjInterToInter->second)->adjIntersectionExists(tempSegInfo.from);
+                if (!interExists)
+                    iterAdjInterToInter->second->add_adjacent_intersection(tempSegInfo.from);
+            } else {
+                // new class to insert
+                IntersectionsClassbyID *tempAdjInterStruct = new IntersectionsClassbyID();
+                tempAdjInterStruct->add_adjacent_intersection(tempSegInfo.from);
+
+                //insert the new pair into hash table
+                Intersection_HashTable.insert(make_pair(tempSegInfo.to, tempAdjInterStruct));
+                tempAdjInterStruct = NULL;
+            }
+        }
+
+        //storing the segment in IntersectionStreetSegmentVector
+        auto iterAdjInterToInter = Intersection_HashTable.find(tempSegInfo.to);
+
+        // examine "to" intersection
+        // intersection exists
+        if (iterAdjInterToInter != Intersection_HashTable.end()) {
+            // true if intersection already exists in vector false otherwise
+            auto tempInfo = iterAdjInterToInter->second;
+            tempInfo->add_intersection_street_segment(NumOfSeg);
+        } else {
+            IntersectionsClassbyID *tempAdjInterStruct = new IntersectionsClassbyID();
+            tempAdjInterStruct->add_intersection_street_segment(NumOfSeg);
+            //insert the new pair into hash table
+            Intersection_HashTable.insert(make_pair(tempSegInfo.to, tempAdjInterStruct));
+            tempAdjInterStruct = NULL;
+        }
+    }
+
+
+
+    /*
+     * Populate AllStreetIntersection_HashTable.
+     * 
+     * Used to find all intersection of a street given street name
+     * 
+     * Street name is the key. All intersections of each street name are 
+     * stored in the a vector in the allIntersectionByStreetNameClass. All 
+     * intersections of street IDs that are part of the street name make up 
+     * all the intersections of the street.
+     * 
+     * AllStreetIntersection_HashTable is populated after the other 
+     * three data structures are set up as AllStreetIntersection_HashTable
+     * gets data from StreetIDStruct_HashTable and StNameToID_BST.
+     * 
+     * All street IDs that belong to the street are found using StNameToID_BST
+     * then all intersections of those street IDs are inserted into one vector
+     * under the street name key.
+     */
+
+    unsigned numStreet = getNumberOfStreets();
+
+    for (unsigned streetIDIndex = 0; streetIDIndex < numStreet; streetIDIndex++) {
+
+        // find info on street ID in StreetIDStruct_HashTable
+        auto iterStreetID = StreetIDStruct_HashTable.find(streetIDIndex);
+
+        // get name of the street that the street ID belongs to
+        string currentStreetName = iterStreetID->second->getStreetName();
+
+        // find street name in AllStreetIntersection_HashTable
+        auto iterAllStreetIntersectionHB = AllStreetIntersection_HashTable.find(currentStreetName);
+
+        // Ignore the case where it is found 
+        // Execute only if not found
+        if (iterAllStreetIntersectionHB == AllStreetIntersection_HashTable.end()) {
+
+            // get all streetIDs that are part of the street
+            vector <unsigned> allStreetIDOfStreet = findStreetIDFromName(currentStreetName);
+            // create data to store in hash table
+            allIntersectionByStreetNameClass *tempClassPtr = new allIntersectionByStreetNameClass();
+            // get intersections of each street ID
+            for (unsigned streetID : allStreetIDOfStreet) {
+                vector <unsigned> streetIDIntersectionVec = getStreetIntersectionsVector(streetID);
+                // put it into the vector in the class
+                tempClassPtr->addStreetIDIntersectionsVector(streetIDIntersectionVec);
+            }
+
+            // create and entry in hash table
+            AllStreetIntersection_HashTable.insert(make_pair(currentStreetName, tempClassPtr));
+            tempClassPtr = NULL;
+        }
+    }
+
+    /*
+     * Populate all the feature vectors.
+     * 
+     * Used to divide features into layers with their ids as content
+     * 
+     */
+
+    for (unsigned feature_idx = 0; feature_idx < getNumberOfFeatures(); feature_idx++) {
+        FeatureType current_type = getFeatureType(feature_idx);
+        if (current_type == Lake || current_type == Shoreline || current_type == Beach
+                || current_type == Island) {
+            features_layer1_vector.push_back(feature_idx);
+        } else if (current_type == Park || current_type == Greenspace || current_type == Golfcourse
+                || current_type == Building || current_type == 0) {
+            features_layer2_vector.push_back(feature_idx);
+        } else features_layer3_vector.push_back(feature_idx);
+
+    }
+    
+    /*
+     * Populate all the vector for subway information.
+     * 
+     * Loop through the OSMways to find the subway routes
+     * 
+     */
+    unsigned long long num_OSMways = getNumberOfWays();
+    unsigned long long num_OSMnodes = getNumberOfNodes();
+
+    //loop through all the OSMway by their indices
+
+    /*populate the subway stations vectors*/
+    for (unsigned OSMnode_idx = 0; OSMnode_idx < num_OSMnodes; OSMnode_idx++) {
+        const OSMNode* cur_member_node = getNodeByIndex(OSMnode_idx);
+
+        //get the number of tags and loop through the tags to see if it is a OSMway for subway
+        unsigned num_tag = getTagCount(cur_member_node);
+        bool is_subway_entrance = false;
+        string station_name;
+        for (unsigned tag_idx = 0; tag_idx < num_tag; tag_idx++) {
+            //get the tag
+            pair<string, string> current_tag = getTagPair(cur_member_node, tag_idx);
+            if (current_tag.first == "railway" && current_tag.second == "subway_entrance") {
+                is_subway_entrance = true;
+            }
+            if (current_tag.first == "name") {
+                station_name = current_tag.second;
+            }
+        }
+        if (is_subway_entrance) {
+            point_info current_info;
+            current_info.name = station_name;
+            current_info.position = cur_member_node->coords();
+            subway_station_vector.push_back(current_info);
+        }
+
+        OSMnodeID_to_idx.insert(make_pair(cur_member_node->id(), OSMnode_idx));
+    }
+
+    for (unsigned OSMway_idx = 0; OSMway_idx < num_OSMways; OSMway_idx++) {
+        const OSMWay* current_OSMway = getWayByIndex(OSMway_idx);
+
+        //get the number of tags and loop through the tags to see if it is a OSMway for subway
+        unsigned num_tag = getTagCount(current_OSMway);
+        for (unsigned tag_idx = 0; tag_idx < num_tag; tag_idx++) {
+            //get the tag
+            pair<string, string> current_tag = getTagPair(current_OSMway, tag_idx);
+
+            if (current_tag.first == "service")
+                break;
+            //check if it is a subway
+            if (current_tag.first == "railway" && current_tag.second == "subway") {
+
+                //set up a subway_route_info object
+                subway_route_info current_route_info;
+                //copy all the OSMid for nodes from the OSMway
+                current_route_info.node_OSMid_vector = current_OSMway->ndrefs();
+
+                //find the name for the way with tag name
+                for (unsigned tag_idx1 = 0; tag_idx1 < num_tag; tag_idx1++) {
+                    pair<string, string> current_tag_for_name = getTagPair(current_OSMway, tag_idx1);
+                    if (current_tag_for_name.first == "name") {
+                        current_route_info.name = current_tag_for_name.second;
+                        break;
+                    }
+                }
+
+                //iterate through all the nodes of the way to fill in the position vector 
+                for (auto cur_member_nodeID = current_route_info.node_OSMid_vector.begin();
+                        cur_member_nodeID != current_route_info.node_OSMid_vector.end(); cur_member_nodeID++) {
+
+                    //current idx
+                    auto iter = OSMnodeID_to_idx.find(*cur_member_nodeID);
+
+                    unsigned current_idx = iter->second;
+                    const OSMNode* cur_member_node = getNodeByIndex(current_idx);
+
+                    current_route_info.position.push_back(cur_member_node->coords());
+
+                }
+
+                //see if there is a service tag in the OSMway
+                for (unsigned tag_idx1 = 0; tag_idx1 < num_tag; tag_idx1++) {
+                    pair<string, string> current_tag_for_name = getTagPair(current_OSMway, tag_idx1);
+                    if (current_tag.first == "service")
+                        break;
+                    if (tag_idx1 == num_tag - 1)
+                        //put the current route info into the subway vector
+                        subway_vector.push_back(current_route_info);
+                }
+            }
+        }
+    }
+
+
+
+    pop = NULL;
+
+    //finding the initial frame
+    double Lat_max = -180;
+    double Lat_min = 180;
+    double Lon_max = -180;
+    double Lon_min = 180;
+    double Lat_avg = 0;
+    float left, bottom, right, top;
+
+    unsigned num = getNumberOfIntersections();
+    for (unsigned index = 0; index < num; index++) {
+
+        LatLon current = getIntersectionPosition(index);
+        Lat_avg += current.lat;
+
+        if (current.lat > Lat_max) {
+            Lat_max = current.lat;
+        }
+        if (current.lat < Lat_min) {
+            Lat_min = current.lat;
+        }
+        if (current.lon > Lon_max) {
+            Lon_max = current.lon;
+        }
+        if (current.lon < Lon_min) {
+            Lon_min = current.lon;
+        }
+    }
+
+
+    Lat_avg = Lat_avg / num;
+
+    cos_factor = cos(Lat_avg * DEG_TO_RAD);
+
+    top = EARTH_RADIUS_IN_METERS * Lat_max * DEG_TO_RAD;
+    bottom = EARTH_RADIUS_IN_METERS * Lat_min * DEG_TO_RAD;
+    left = EARTH_RADIUS_IN_METERS * Lon_min * DEG_TO_RAD * cos_factor;
+    right = EARTH_RADIUS_IN_METERS * Lon_max * DEG_TO_RAD * cos_factor;
+
+    initial_frame = t_bound_box(left, bottom, right, top);
+
+    /*
+     * Populate all the special feature vectors.
+     * 
+     * Find the required information about library and recreation centers
+     * 
+     */
+
+    //set up parameters for populating the 2d array for POIs
+    //to be save, adding 50 to each extreme
+    int size = 30;
+    float x_interval = abs(right - left) / size;
+    float y_interval = abs(top - bottom) / size;
+
+    unsigned num_POI = getNumberOfPointsOfInterest();
+
+    //doesn't use this structure for city with less than 50 points of interests
+    if (num_POI > 50)
+        for (unsigned POI_idx = 0; POI_idx < getNumberOfPointsOfInterest(); POI_idx++) {
+            LatLon current_position = getPointOfInterestPosition(POI_idx);
+            string current_type = getPointOfInterestType(POI_idx);
+            t_point current_xy = to_xycoordinate(current_position);
+
+            //set up the point_info object
+            point_info current_info;
+            current_info.name = getPointOfInterestName(POI_idx);
+            current_info.position = current_position;
+            current_info.type = current_type;
+            current_info.xy_position = current_xy;
+            current_info.POIID = POI_idx;
+
+            //find the x and y index for the 2d array
+            double draft_x_value = (abs(current_xy.x - left) / x_interval);
+            int x_value = (int) floor(draft_x_value);
+            double draft_y_value = (abs(top - current_xy.y) / y_interval);
+            int y_value = (int) floor(draft_y_value);
+
+            //insert the information into the 2d array
+            POI_2d_array[x_value][y_value].push_back(current_info);
+
+            //put the POI name into the POI_names vector if it hasn't exist yet
+            if (find(POI_names.begin(), POI_names.end(), current_info.name) == POI_names.end())
+                POI_names.push_back(current_info.name.c_str());
+
+            //put the POI into the multimap 
+            POI_name_to_id.insert(make_pair(current_info.name, POI_idx));
+            
+            if (current_type == "library") {
+                library_vector.push_back(current_info);
+            } else if (current_type == "health_center" || current_type == "health_specialty chiropractic"
+                    || current_type == "hospital" || current_type == "doctors") {
+                recreation_vector.push_back(current_info);
+            } else if (current_type == "atm" || current_type == "bank"
+                    || current_type == "financial") {
+                finance_vector.push_back(current_info);
+            } else if (current_type == "banquet_hall" || current_type == "bar" || current_type == "cafe"
+                    || current_type == "fast_food" || current_type == "food_court" || current_type == "future_fast_food"
+                    || current_type == "ice_cream" || current_type == "internet_cafe" || current_type == "pub"
+                    || current_type == "restaurant") {
+                restaurant_vector.push_back(current_info);
+            } else if (current_type == "car_wash" || current_type == "fuel" || current_type == "parking") {
+                car_vector.push_back(current_info);
+            } else if (current_type == "language_school" || current_type == "college" || current_type == "english_school"
+                    || current_type == "kindergarten" || current_type == "library" || current_type == "music_school"
+                    || current_type == "montessori_school" || current_type == "preschool" || current_type == "school"
+                    || current_type == "university") {
+                education_vector.push_back(current_info);
+            } else if (current_type == "arts_center" || current_type == "museum" || current_type == "theatre"
+                    || current_type == "cinema") {
+                arts_vector.push_back(current_info);
+            }
+        }
+
+}
+
+dataStructureSingleton::~dataStructureSingleton() {
+    // delete dynamically allocated classes
+    auto iter1 = StreetIDStruct_HashTable.begin();
+    while (iter1 != StreetIDStruct_HashTable.end()) {
+        if (iter1->second != NULL)
+            delete iter1->second;
+        iter1->second = NULL;
+        iter1++;
+    }
+
+    auto iter2 = Intersection_HashTable.begin();
+    while (iter2 != Intersection_HashTable.end()) {
+        if (iter2->second != NULL)
+            delete iter2->second;
+        iter2->second = NULL;
+        iter2++;
+    }
+
+    auto iter3 = AllStreetIntersection_HashTable.begin();
+    while (iter3 != AllStreetIntersection_HashTable.end()) {
+        if (iter3->second != NULL)
+            delete iter3->second;
+        iter3->second = NULL;
+        iter3++;
+    }
+    if (pop != NULL)
+        delete pop;
+
+
+    //  for (int i = 0; i < 100; ++i) {
+    //      delete [] POI_2d_array[i];
+    //  }
+    //  delete [] POI_2d_array;
+}
+
+void dataStructureSingleton::deleteStruc() {
+    if (dataStructure != NULL)
+        delete dataStructure;
+    dataStructure = NULL;
+}
+
+dataStructureSingleton * dataStructureSingleton::dataStructures() {
+    if (dataStructure == NULL)
+        dataStructure = new dataStructureSingleton;
+    return dataStructure;
+};
+
+vector<unsigned> dataStructureSingleton::findStreetIDFromName(string street_name) {
+    pair <multimap<string, unsigned>::iterator, multimap<string, unsigned>::iterator> ret;
+    ret = StNameToID_BST.equal_range(street_name);
+    vector<unsigned> matchedStreetIDs;
+    for (auto it = ret.first; it != ret.second; ++it)
+        matchedStreetIDs.push_back(it->second);
+    return matchedStreetIDs;
+}
+
+vector<unsigned> dataStructureSingleton::findIntersectionStreetSeg(unsigned intersection_id) {
+    auto currentIntersection = Intersection_HashTable[intersection_id];
+    if (currentIntersection != NULL) {
+        return currentIntersection->returnAllInterStreetSegID();
+    } else {
+        std::vector <unsigned> emptyVector;
+        return (emptyVector);
+    }
+}
+
+vector<unsigned> dataStructureSingleton::getAllAdjacentIntersections(unsigned intersection_id) {
+    auto currentIntersection = Intersection_HashTable[intersection_id];
+    if (currentIntersection != NULL)
+        return currentIntersection->returnAllAdjInterID();
+
+        // To guard against the corner case where the intersection not connected to any
+        // street segments. Thus, meaning that key with this intersection was not
+        // created in the hash table
+    else {
+        std::vector <unsigned> emptyVector;
+        return (emptyVector);
+    }
+}
+
+vector<unsigned> dataStructureSingleton::getAllStreetSegForStreet(unsigned street_id) {
+    auto currentStreet = StreetIDStruct_HashTable[street_id];
+    return currentStreet->returnAllStreetSegID();
+}
+
+std::vector<unsigned> dataStructureSingleton::getStreetIntersectionsVector(unsigned street_id) {
+    auto currentStreet = StreetIDStruct_HashTable[street_id];
+    return currentStreet->returnAllIntersectionID();
+}
+
+std::vector<unsigned> dataStructureSingleton::getStreetNameIntersectionsVector(string streetName) {
+    auto foundStreetName = AllStreetIntersection_HashTable[streetName];
+    if (foundStreetName != NULL)
+        return foundStreetName->getAllIntersectionsVector();
+    else {
+        std::vector <unsigned> emptyVector;
+        return (emptyVector);
+    }
+}

@@ -1,0 +1,46 @@
+#include "StreetsDatabaseAPI.h"
+#include "m1.h"
+
+using namespace std;
+
+int main() {
+
+    load_map("/cad2/ece297s/public/maps/toronto.streets.bin");
+
+
+    // try out your m1.h functions here
+
+    // find_adjacent_intersections function tester
+    vector<unsigned> adjIntersectionsVector = find_adjacent_intersections(59444);
+    vector<unsigned>::const_iterator iterAdjIntersectionVec = adjIntersectionsVector.begin();
+    cout << "find_adjacent_intersections function test" << endl;
+    while (iterAdjIntersectionVec != adjIntersectionsVector.end()) {
+        cout << *iterAdjIntersectionVec << " ";
+        iterAdjIntersectionVec++;
+    }
+    cout << "\n\n";
+
+    // find_street_street_segments function tester
+    vector<unsigned> streetSegmentsVector = find_street_street_segments(6117);
+    vector<unsigned>::const_iterator iterStreetSegVec = streetSegmentsVector.begin();
+    cout << "find_street_street_segments function test" << endl;
+    while (iterStreetSegVec != streetSegmentsVector.end()) {
+        cout << *iterStreetSegVec << " ";
+        iterStreetSegVec++;
+    }
+    cout << "\n\n";
+
+    // find_all_street_intersections function tester
+    vector<unsigned> allStreetIntersectionVec = find_all_street_intersections(12511);
+    vector<unsigned>::const_iterator iterallStreetIntcnVec = allStreetIntersectionVec.begin();
+    cout << "find_all_street_intersections function test" << endl;
+    while (iterallStreetIntcnVec != allStreetIntersectionVec.end()) {
+        cout << *iterallStreetIntcnVec << " ";
+        iterallStreetIntcnVec++;
+    }
+    cout << "\n\n";
+
+    close_map();
+
+    return 0;
+}
